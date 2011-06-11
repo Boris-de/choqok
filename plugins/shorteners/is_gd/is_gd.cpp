@@ -30,6 +30,8 @@
 #include <KGenericFactory>
 #include <kglobal.h>
 #include <qeventloop.h>
+#include <notifymanager.h>
+#include <qjson/parser.h>
 
 K_PLUGIN_FACTORY( MyPluginFactory, registerPlugin < Is_gd > (); )
 K_EXPORT_PLUGIN( MyPluginFactory( "choqok_is_gd" ) )
@@ -46,8 +48,9 @@ Is_gd::~Is_gd()
 QString Is_gd::shorten( const QString& url )
 {
     kDebug() << "Using is.gd";
-    KUrl reqUrl( "http://is.gd/api.php" );
-    reqUrl.addQueryItem( "longurl", KUrl( url ).url() );
+    KUrl reqUrl( "http://is.gd/create.php" );
+    reqUrl.addQueryItem( "format", "json" );
+    reqUrl.addQueryItem( "url", KUrl( url ).url() );
 
     QEventLoop loop;
     KIO::StoredTransferJob* job = KIO::storedGet( reqUrl, KIO::Reload, KIO::HideProgressInfo );
@@ -56,14 +59,25 @@ QString Is_gd::shorten( const QString& url )
     loop.exec();
 
     if( job->error() == KJob::NoError ) {
-        QString output(job->data());
-        kDebug() << "Short url is: " << output;
-        if( !output.isEmpty() ) {
-            return output;
+        QJson::Parser parser;
+        bool ok;
+        QVariantMap map = parser.parse( job->data() , &ok ).toMap();
+
+        if ( ok ) {
+            if ( !map[ "errorcode" ].toString().isEmpty() ) {
+                Choqok::NotifyManager::error( map[ "errormessage" ].toString(), i18n("is.gd error") );
+                return url;
+            }
+            QString shorturl = map[ "shorturl" ].toString();
+            if (!shorturl.isEmpty()) {
+                return shorturl;
+            }
+        } else {
+            Choqok::NotifyManager::error( i18n("Malformed response\n"), i18n("is.gd error")  );
         }
     }
     else {
-        kDebug() << "KJob ERROR" << job->errorString();
+        Choqok::NotifyManager::error( i18n("Cannot create a short url.\n%1", job->errorString()), i18n("is.gd error") );
     }
     return url;
 }

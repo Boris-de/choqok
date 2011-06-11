@@ -7,7 +7,7 @@ is_gd.cpp )
 
 kde4_add_plugin(choqok_is_gd ${choqok_is_gd_SRCS})
 
-target_link_libraries(choqok_is_gd ${KDE4_KIO_LIBS} choqok)
+target_link_libraries(choqok_is_gd ${KDE4_KIO_LIBS} ${QJSON_LIBRARY} choqok)
 
 install(TARGETS choqok_is_gd DESTINATION ${PLUGIN_INSTALL_DIR})
 
