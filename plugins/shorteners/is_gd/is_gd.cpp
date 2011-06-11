@@ -32,6 +32,7 @@
 #include <qeventloop.h>
 #include <notifymanager.h>
 #include <qjson/parser.h>
+#include "is_gd_settings.h"
 
 K_PLUGIN_FACTORY( MyPluginFactory, registerPlugin < Is_gd > (); )
 K_EXPORT_PLUGIN( MyPluginFactory( "choqok_is_gd" ) )
@@ -48,9 +49,15 @@ Is_gd::~Is_gd()
 QString Is_gd::shorten( const QString& url )
 {
     kDebug() << "Using is.gd";
+
+    Is_gd_Settings::self()->readConfig();
+
     KUrl reqUrl( "http://is.gd/create.php" );
     reqUrl.addQueryItem( "format", "json" );
     reqUrl.addQueryItem( "url", KUrl( url ).url() );
+    if (Is_gd_Settings::logstats()) {
+        reqUrl.addQueryItem( "logstats", "true");
+    }
 
     QEventLoop loop;
     KIO::StoredTransferJob* job = KIO::storedGet( reqUrl, KIO::Reload, KIO::HideProgressInfo );
