@@ -65,9 +65,11 @@ protected Q_SLOTS:
     void setupSpeller();
     void slotAboutToShowContextMenu(QMenu* menu);
     void shortenUrls();
+    void shortenCurrentUrl();
 
 protected:
     void undoableClear();
+    QTextCursor currentURL();
     QLabel *lblRemainChar;
 
 private:

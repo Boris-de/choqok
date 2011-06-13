@@ -41,7 +41,7 @@ class TextEdit::Private
 {
 public:
     Private(uint charLmt)
-    : langActions(new QMenu),charLimit(charLmt)
+    : langActions(new QMenu),charLimit(charLmt),urlStart("^(ftp|http)s?://.+"),ellipsis(8230)
     {}
     QMenu *langActions;
     QMap<QString, QAction*> langActionMap;
@@ -49,6 +49,8 @@ public:
     QString prevStr;
     QChar firstChar;
     QString curLang;
+    const QRegExp urlStart;
+    const QChar ellipsis;
 };
 
 TextEdit::TextEdit(uint charLimit /*= 0*/, QWidget* parent /*= 0*/)
@@ -183,6 +185,18 @@ void TextEdit::slotAboutToShowContextMenu(QMenu* menu)
         KAction *shorten = new KAction(i18nc("Replace URLs by a shortened URL", "Shorten URLs"), menu);
         connect(shorten, SIGNAL(triggered(bool)), SLOT(shortenUrls()));
         menu->addAction(shorten);
+
+        // check if the cursor is currenly in a URL to provide the shorten-current-action
+        QTextCursor current = currentURL();
+	QString possibleUrl = current.selectedText();
+        if (d->urlStart.indexIn(possibleUrl) >= 0) {
+	    QString messageUrl = possibleUrl.length() > 20 ? possibleUrl.left(20) + d->ellipsis : possibleUrl;
+            KAction *shorten = new KAction(i18nc("Replace current URL by a shortened URL", "Shorten %1", messageUrl), menu);
+            menu->addAction(shorten);
+	    connect(shorten, SIGNAL(triggered(bool)), SLOT(shortenCurrentUrl()));
+	}
+
+	this->pos();
     }
 }
 
@@ -197,6 +211,36 @@ void TextEdit::shortenUrls()
     cur.removeSelectedText();
     cur.insertText(shortened);
     setTextCursor(cur);
+}
+
+void TextEdit::shortenCurrentUrl()
+{
+    kDebug();
+    QTextCursor current = currentURL();
+    QString shortened = ShortenManager::self()->shortenUrl( current.selectedText() );
+    current.removeSelectedText();
+    current.insertText(shortened);
+    setTextCursor(current);
+}
+
+// get a cursor that selects everything from the first space
+// before and after the current cursor
+QTextCursor TextEdit::currentURL()
+{
+    kDebug();
+    QTextCursor cur = textCursor();
+    QString text = toPlainText();
+    int start = text.lastIndexOf(" ", cur.position()) + 1;
+    int end = text.indexOf(" ", cur.position());
+    if (end == -1) { // if there is no space until the end -> use the whole string
+        end = text.length();
+    }
+
+    // select the possible URL
+    cur.setPosition(start, QTextCursor::MoveAnchor);
+    cur.setPosition(end, QTextCursor::KeepAnchor);
+
+    return cur;
 }
 
 void TextEdit::slotChangeSpellerLanguage()
